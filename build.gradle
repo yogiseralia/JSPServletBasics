@@ -19,13 +19,19 @@ war {
     archiveFileName = "${project.name}-${version}.war"
 }
 
+def tomcatHome = System.getenv('CATALINA_HOME')
+
 tasks.register('deployToTomcat', Copy) {
+    if (tomcatHome == null) {
+        throw new GradleException("CATALINA_HOME environment variable is not set.")
+    }
+
     dependsOn build  // Ensure WAR is built before deployment
     from("$buildDir/libs/${project.name}-${version}.war")  // The WAR file to deploy
-    into('C:\\ApacheSoftwareFoundation\\Tomcat10.1\\webapps\\')  // Path to Tomcat's 'webapps' directory
+    into("$tomcatHome/webapps/")  // Path to Tomcat's 'webapps' directory
 }
 
 tasks.register('restartTomcat', Exec) {
     dependsOn deployToTomcat
-    commandLine 'cmd', '/c', 'C:\\ApacheSoftwareFoundation\\Tomcat10.1\\bin\\startup.bat'  // Shutdown Tomcat
+    commandLine 'cmd', '/c', "$tomcatHome/bin/startup.bat"  // Shutdown Tomcat
 }
