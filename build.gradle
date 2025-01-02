@@ -1,0 +1,31 @@
+plugins {
+    id 'java'
+    id 'war'  // To package the project as a WAR file
+}
+
+group = 'com.example.servlet'
+version = project.version
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'jakarta.servlet:jakarta.servlet-api:5.0.0'
+}
+
+war {
+    webAppDirName = 'src/main/web'
+    archiveFileName = "${project.name}-${version}.war"
+}
+
+tasks.register('deployToTomcat', Copy) {
+    dependsOn build  // Ensure WAR is built before deployment
+    from("$buildDir/libs/${project.name}-${version}.war")  // The WAR file to deploy
+    into('C:\\ApacheSoftwareFoundation\\Tomcat10.1\\webapps\\')  // Path to Tomcat's 'webapps' directory
+}
+
+tasks.register('restartTomcat', Exec) {
+    dependsOn deployToTomcat
+    commandLine 'cmd', '/c', 'C:\\ApacheSoftwareFoundation\\Tomcat10.1\\bin\\startup.bat'  // Shutdown Tomcat
+}
