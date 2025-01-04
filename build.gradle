@@ -71,9 +71,14 @@ tasks.register('stopTomcat', Exec) {
     verifyPath(tomcatHome)
     if (isTomcatRunning(tomcatHome)) {
         println 'Stopping Tomcat...'
-        commandLine 'cmd', '/c', "$tomcatHome/bin/shutdown.bat"
+        if (isMac())
+            commandLine 'sh', "$tomcatHome/bin/shutdown.sh"
+        else commandLine 'cmd', '/c', "$tomcatHome/bin/shutdown.bat"
     } else {
-        commandLine 'cmd', '/c', 'echo Tomcat not running'
+        if (isMac())
+            commandLine 'sh', '-c', 'echo Tomcat not running'
+        else
+            commandLine 'cmd', '/c', 'echo Tomcat not running'
     }
 }
 
@@ -88,5 +93,12 @@ tasks.register('deployToTomcat', Copy) {
 tasks.register('restartTomcat', Exec) {
     dependsOn deployToTomcat
     println "Starting Tomcat..."
-    commandLine 'cmd', '/c', "$tomcatHome/bin/startup.bat"
+    if (isMac())
+        commandLine 'sh', "$tomcatHome/bin/startup.sh"
+    else
+        commandLine 'cmd', '/c', "$tomcatHome/bin/startup.bat"
+}
+
+private static boolean isMac() {
+    return System.properties['os.name'].toString().toLowerCase().contains('mac')
 }
