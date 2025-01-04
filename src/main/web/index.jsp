@@ -6,6 +6,6 @@
 </head>
 <body>
     <h1>Welcome to JSP</h1>
-    <a href="hello">Click here for servlet</a>
+    <a href="./simple-form.html">Click here for servlet</a>
 </body>
 </html>
