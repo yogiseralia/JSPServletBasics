@@ -1,3 +1,5 @@
+import javax.xml.parsers.DocumentBuilderFactory
+
 plugins {
     id 'java'
     id 'war'  // To package the project as a WAR file
@@ -5,6 +7,9 @@ plugins {
 
 group = 'com.example.servlet'
 version = project.version
+
+def tomcatHome = System.getenv('CATALINA_HOME')
+def projectName = "${project.name}-${version}"
 
 repositories {
     mavenCentral()
@@ -16,22 +21,72 @@ dependencies {
 
 war {
     webAppDirName = 'src/main/web'
-    archiveFileName = "${project.name}-${version}.war"
+    archiveFileName = "${projectName}.war"
 }
 
-def tomcatHome = System.getenv('CATALINA_HOME')
 
-tasks.register('deployToTomcat', Copy) {
+
+private static void verifyPath(String tomcatHome) {
     if (tomcatHome == null) {
         throw new GradleException("CATALINA_HOME environment variable is not set.")
     }
+}
 
+static def isTomcatRunning(String tomcatHome) {
+    def port = getTomcatPort(tomcatHome)
+    try {
+        def socket = new Socket("localhost", port)
+        socket.close()
+        return true
+    } catch (Exception ignored) {
+        return false
+    }
+}
+
+private static int getTomcatPort(String tomcatHome) {
+    int port = 8080 // Default port if not specified
+    String serverXmlPath = "$tomcatHome/conf/server.xml"
+    def serverXml = new File(serverXmlPath)
+
+    if (serverXml.exists()) {
+        def factory = DocumentBuilderFactory.newInstance()
+        def builder = factory.newDocumentBuilder()
+        def doc = builder.parse(serverXml)
+        doc.getDocumentElement().normalize()
+
+        def connectors = doc.getElementsByTagName("Connector")
+        for (int i = 0; i < connectors.getLength(); i++) {
+            def node = connectors.item(i)
+            def protocol = node.getAttributes().getNamedItem("protocol")?.getNodeValue()
+            if (protocol?.contains("HTTP/1.1")) {
+                port = node.getAttributes().getNamedItem("port")?.getNodeValue()?.toInteger()
+                break
+            }
+        }
+    }
+    return port // Return the extracted port value
+}
+
+tasks.register('stopTomcat', Exec) {
+    verifyPath(tomcatHome)
+    if (isTomcatRunning(tomcatHome)) {
+        println 'Stopping Tomcat...'
+        commandLine 'cmd', '/c', "$tomcatHome/bin/shutdown.bat"
+    } else {
+        commandLine 'cmd', '/c', 'echo Tomcat not running'
+    }
+}
+
+tasks.register('deployToTomcat', Copy) {
+    dependsOn stopTomcat
     dependsOn build  // Ensure WAR is built before deployment
-    from("$buildDir/libs/${project.name}-${version}.war")  // The WAR file to deploy
+    from("$buildDir/libs/${projectName}.war")  // The WAR file to deploy
     into("$tomcatHome/webapps/")  // Path to Tomcat's 'webapps' directory
+    println "$projectName deployed!!"
 }
 
 tasks.register('restartTomcat', Exec) {
     dependsOn deployToTomcat
-    commandLine 'cmd', '/c', "$tomcatHome/bin/startup.bat"  // Shutdown Tomcat
+    println "Starting Tomcat..."
+    commandLine 'cmd', '/c', "$tomcatHome/bin/startup.bat"
 }
